@@ -1,15 +1,63 @@
+// CustomPost.js
 import { formatDistanceToNow } from 'date-fns';
 
 export default function CustomPost({ post }) {
   // Function to resolve the image URL from the ref link
   const getImageUrl = (imageRef) => {
-    // Check if imageRef is an object and retrieve the correct property
-    const imageLink = imageRef && imageRef.$link ? imageRef.$link : imageRef;
-    
-    console.log(`https://bsky.app/img/${imageLink}`);
-    return `https://bsky.app/img/${imageLink}`; // Use the correct URL
+    if (!imageRef) return null;
+    // Handle different image reference formats
+    if (typeof imageRef === 'string') return imageRef;
+    if (imageRef.$link) return `https://cdn.bsky.app/img/feed_fullsize/plain/${imageRef.$link}`;
+    return null;
   };
-  
+
+  // Function to handle embedded images
+  const renderEmbeddedImages = () => {
+    if (post.embed?.$type === 'app.bsky.embed.images#view') {
+      return (
+        <div className="mt-3 grid gap-2">
+          {post.embed.images.map((img, index) => (
+            <img
+              key={index}
+              src={img.fullsize}
+              alt={img.alt || 'Embedded image'}
+              className="rounded-lg w-full object-cover max-h-96"
+            />
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Function to handle external embeds
+  const renderExternalEmbed = () => {
+    if (post.record.embed?.external) {
+      return (
+        <a
+          href={post.record.embed.external.uri}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 block border rounded-lg overflow-hidden hover:bg-gray-50"
+        >
+          {post.record.embed.external.thumb && (
+            <img
+              src={getImageUrl(post.record.embed.external.thumb.ref)}
+              alt={post.record.embed.external.title || "External content"}
+              className="w-full h-48 object-cover"
+            />
+          )}
+          <div className="p-3">
+            <h4 className="font-medium">{post.record.embed.external.title}</h4>
+            <p className="text-gray-600 text-sm mt-1">
+              {post.record.embed.external.description}
+            </p>
+          </div>
+        </a>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="border rounded-lg p-4 bg-white shadow">
@@ -43,29 +91,11 @@ export default function CustomPost({ post }) {
         <p className="text-gray-900 whitespace-pre-wrap">{post.record.text}</p>
       </div>
 
-      {/* Embedded Content */}
-      {post.record.embed?.external && (
-        <a
-          href={post.record.embed.external.uri}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 block border rounded-lg overflow-hidden hover:bg-gray-50"
-        >
-          {post.record.embed.external.thumb?.ref && (
-            <img
-              src={getImageUrl(post.record.embed.external.thumb.ref)}
-              alt="Post Thumbnail"
-              className="w-full h-48 object-cover"
-            />
-          )}
-          <div className="p-3">
-            <h4 className="font-medium">{post.record.embed.external.title}</h4>
-            <p className="text-gray-600 text-sm mt-1">
-              {post.record.embed.external.description}
-            </p>
-          </div>
-        </a>
-      )}
+      {/* Render embedded images if present */}
+      {renderEmbeddedImages()}
+
+      {/* Render external embed if present */}
+      {renderExternalEmbed()}
 
       {/* Interaction Buttons */}
       <div className="mt-3 flex items-center justify-start space-x-6 text-gray-500">
@@ -96,6 +126,6 @@ export default function CustomPost({ post }) {
           <span>{post.likeCount}</span>
         </button>
       </div>
-    </div>  
+    </div>
   );
 }
