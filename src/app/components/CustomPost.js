@@ -1,17 +1,85 @@
 // CustomPost.js
+import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { Share2, BookmarkPlus, Flag, MessageSquare } from 'lucide-react';
+// Simple Modal component
+const Modal = ({ isOpen, onClose, children }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        {children}
+        <button 
+          onClick={onClose}
+          className="mt-4 w-full bg-gray-900 text-white rounded-md py-2 hover:bg-gray-800 transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+};
 
-export default function CustomPost({ post }) {
-  // Function to resolve the image URL from the ref link
-  const getImageUrl = (imageRef) => {
-    if (!imageRef) return null;
-    // Handle different image reference formats
-    if (typeof imageRef === 'string') return imageRef;
-    if (imageRef.$link) return `https://cdn.bsky.app/img/feed_fullsize/plain/${imageRef.$link}`;
-    return null;
+export function CustomPost({ post }) {
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [localLikeCount, setLocalLikeCount] = useState(post.likeCount || 0);
+
+  // Enhanced text rendering with URL detection
+  const renderText = (text) => {
+    if (!text) return '';
+    
+    // URL regex pattern
+    const urlPattern = /https?:\/\/[^\s]+/g;
+    const hashtagPattern = /#[\w]+/g;
+    const mentionPattern = /@[\w.]+/g;
+    
+    // Split text into segments with URLs preserved
+    const segments = text.split(/(\s+|(?=https?:\/\/)|(?<=\s)(?=[#@]))/);
+    
+    return segments.map((segment, index) => {
+      // Handle URLs
+      if (segment.match(urlPattern)) {
+        return (
+          <a 
+            key={index}
+            href={segment}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline break-all"
+          >
+            {segment}
+          </a>
+        );
+      }
+      // Handle hashtags
+      else if (segment.match(hashtagPattern)) {
+        return (
+          <span key={index} className="text-blue-500 hover:underline cursor-pointer">
+            {segment}
+          </span>
+        );
+      }
+      // Handle mentions
+      else if (segment.match(mentionPattern)) {
+        return (
+          <a 
+            key={index}
+            href={`/profile/${segment.slice(1)}`}
+            className="text-blue-500 hover:underline"
+          >
+            {segment}
+          </a>
+        );
+      }
+      // Return regular text
+      return segment;
+    });
   };
 
-  // Function to handle embedded images
+  // Handle embedded images
   const renderEmbeddedImages = () => {
     if (post.embed?.$type === 'app.bsky.embed.images#view') {
       return (
@@ -22,6 +90,7 @@ export default function CustomPost({ post }) {
               src={img.fullsize}
               alt={img.alt || 'Embedded image'}
               className="rounded-lg w-full object-cover max-h-96"
+              loading="lazy"
             />
           ))}
         </div>
@@ -30,28 +99,31 @@ export default function CustomPost({ post }) {
     return null;
   };
 
-  // Function to handle external embeds
+  // Handle external embeds with enhanced preview
   const renderExternalEmbed = () => {
-    if (post.record.embed?.external) {
+    if (post.embed?.$type === 'app.bsky.embed.external#view') {
+      const { uri, title, description, thumb } = post.embed.external;
       return (
         <a
-          href={post.record.embed.external.uri}
+          href={uri}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-3 block border rounded-lg overflow-hidden hover:bg-gray-50"
+          className="mt-3 block border rounded-lg overflow-hidden hover:bg-gray-50 transition-colors"
         >
-          {post.record.embed.external.thumb && (
+          {thumb && (
             <img
-              src={getImageUrl(post.record.embed.external.thumb.ref)}
-              alt={post.record.embed.external.title || "External content"}
+              src={thumb}
+              alt={title || "External content"}
               className="w-full h-48 object-cover"
+              loading="lazy"
             />
           )}
           <div className="p-3">
-            <h4 className="font-medium">{post.record.embed.external.title}</h4>
-            <p className="text-gray-600 text-sm mt-1">
-              {post.record.embed.external.description}
-            </p>
+            <h4 className="font-medium text-gray-900">{title}</h4>
+            {description && (
+              <p className="text-gray-600 text-sm mt-1 line-clamp-2">{description}</p>
+            )}
+            <p className="text-gray-500 text-xs mt-2">{new URL(uri).hostname}</p>
           </div>
         </a>
       );
@@ -59,27 +131,56 @@ export default function CustomPost({ post }) {
     return null;
   };
 
+  const handleLike = () => {
+    setIsLiked(!isLiked);
+    setLocalLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+  };
+
+  const handleBookmark = () => {
+    setIsBookmarked(!isBookmarked);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Post by ${post.author.displayName}`,
+          text: post.record.text,
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.error('Error sharing:', err);
+      }
+    } else {
+      setIsAlertOpen(true);
+    }
+  };
+
   return (
-    <div className="border rounded-lg p-4 bg-white shadow">
+    <div className="border rounded-lg p-4 bg-white shadow hover:shadow-md transition-shadow">
       {/* Author Header */}
       <div className="flex items-start space-x-3">
-        {post.author.avatar && (
-          <img
-            src={post.author.avatar}
-            alt={post.author.handle}
-            className="w-10 h-10 rounded-full"
-          />
-        )}
+        <a href={`/profile/${post.author.handle}`} className="flex-shrink-0">
+          {post.author.avatar && (
+            <img
+              src={post.author.avatar}
+              alt={post.author.handle}
+              className="w-10 h-10 rounded-full hover:opacity-90 transition-opacity"
+            />
+          )}
+        </a>
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2">
-            <span className="font-medium truncate">
-              {post.author.displayName}
-            </span>
+            <a href={`/profile/${post.author.handle}`} className="hover:underline">
+              <span className="font-medium truncate">
+                {post.author.displayName}
+              </span>
+            </a>
             <span className="text-gray-500 truncate">
               @{post.author.handle}
             </span>
             <span className="text-gray-500">·</span>
-            <time className="text-gray-500">
+            <time className="text-gray-500 hover:underline" title={new Date(post.record.createdAt).toLocaleString()}>
               {formatDistanceToNow(new Date(post.record.createdAt))} ago
             </time>
           </div>
@@ -87,45 +188,78 @@ export default function CustomPost({ post }) {
       </div>
 
       {/* Post Content */}
-      <div className="mt-3">
-        <p className="text-gray-900 whitespace-pre-wrap">{post.record.text}</p>
+      <div className="mt-3 break-words">
+        <p className="text-gray-900 whitespace-pre-wrap">{renderText(post.record.text)}</p>
       </div>
 
-      {/* Render embedded images if present */}
       {renderEmbeddedImages()}
-
-      {/* Render external embed if present */}
       {renderExternalEmbed()}
 
-      {/* Interaction Buttons */}
-      <div className="mt-3 flex items-center justify-start space-x-6 text-gray-500">
-        <button className="flex items-center space-x-2 hover:text-blue-500">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" 
-            />
-          </svg>
+      {/* Enhanced Interaction Buttons */}
+      <div className="mt-3 flex items-center justify-between text-gray-500 border-t pt-3">
+        <button 
+          className="flex items-center space-x-2 hover:text-blue-500 transition-colors"
+          aria-label="Reply"
+        >
+          <MessageSquare className="w-5 h-5" />
           <span>{post.replyCount}</span>
         </button>
 
-        <button className="flex items-center space-x-2 hover:text-green-500">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-            />
-          </svg>
-          <span>{post.repostCount}</span>
-        </button>
-
-        <button className="flex items-center space-x-2 hover:text-red-500">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button 
+          className={`flex items-center space-x-2 transition-colors ${
+            isLiked ? 'text-red-500' : 'hover:text-red-500'
+          }`}
+          onClick={handleLike}
+          aria-label={isLiked ? 'Unlike' : 'Like'}
+        >
+          <svg className="w-5 h-5" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
               d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
             />
           </svg>
-          <span>{post.likeCount}</span>
+          <span>{localLikeCount}</span>
+        </button>
+
+        <button 
+          className={`flex items-center space-x-2 transition-colors ${
+            isBookmarked ? 'text-yellow-500' : 'hover:text-yellow-500'
+          }`}
+          onClick={handleBookmark}
+          aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+        >
+          <BookmarkPlus className="w-5 h-5" />
+        </button>
+
+        <button 
+          className="flex items-center space-x-2 hover:text-blue-500 transition-colors"
+          onClick={handleShare}
+          aria-label="Share"
+        >
+          <Share2 className="w-5 h-5" />
+        </button>
+
+        <button 
+          className="flex items-center space-x-2 hover:text-red-500 transition-colors"
+          aria-label="Report"
+        >
+          <Flag className="w-5 h-5" />
         </button>
       </div>
+
+      {/* Share Dialog */}
+      <Modal isOpen={isAlertOpen} onClose={() => setIsAlertOpen(false)}>
+        <h2 className="text-xl font-semibold mb-4">Share Post</h2>
+        <p className="text-gray-600 mb-2">Copy this link to share the post:</p>
+        <input 
+          type="text" 
+          value={window.location.href}
+          readOnly
+          className="w-full p-2 border rounded bg-gray-50 mb-2"
+          onClick={e => e.target.select()}
+        />
+      </Modal>
     </div>
   );
 }
+
+export default CustomPost;
