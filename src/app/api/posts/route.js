@@ -52,41 +52,14 @@ async function fetchBlueskyPosts(query, authToken) {
   }
 }
 
-// async function saveToJsonFile(data) {
-//   try {
-//     // Determine the temporary directory based on the environment
-//     const tmpDir = process.platform === 'win32' ? path.join(os.tmpdir()) : '/tmp';
-//     const filePath = path.join(tmpDir, 'bluesky-posts.json');
-
-//     // Write data to the file
-//     await fs.writeFile(filePath, JSON.stringify(data, null, 2));
-//     console.log(`Saved results to ${filePath}`);
-//     return filePath;
-//   } catch (error) {
-//     console.error('Error saving to JSON file:', error);
-//     throw error;
-//   }
-// }
-// Function to save data to JSON file
 async function saveToJsonFile(data) {
   try {
-    // Get the project root directory
-    const projectRoot = process.cwd();
-    
-    // Create data directory if it doesn't exist
-    const dataDir = path.join(projectRoot, 'data');
-    try {
-      await fs.mkdir(dataDir, { recursive: true });
-    } catch (err) {
-      if (err.code !== 'EEXIST') throw err;
-    }
+    // Determine the temporary directory based on the environment
+    const tmpDir = process.platform === 'win32' ? path.join(os.tmpdir()) : '/tmp';
+    const filePath = path.join(tmpDir, 'bluesky-posts.json');
 
-    // Save to JSON file
-    const filePath = path.join(dataDir, 'bluesky-posts.json');
-    await fs.writeFile(
-      filePath,
-      JSON.stringify(data, null, 2)
-    );
+    // Write data to the file
+    await fs.writeFile(filePath, JSON.stringify(data, null, 2));
     console.log(`Saved results to ${filePath}`);
     return filePath;
   } catch (error) {
@@ -94,6 +67,33 @@ async function saveToJsonFile(data) {
     throw error;
   }
 }
+// Function to save data to JSON file
+// async function saveToJsonFile(data) {
+//   try {
+//     // Get the project root directory
+//     const projectRoot = process.cwd();
+    
+//     // Create data directory if it doesn't exist
+//     const dataDir = path.join(projectRoot, 'data');
+//     try {
+//       await fs.mkdir(dataDir, { recursive: true });
+//     } catch (err) {
+//       if (err.code !== 'EEXIST') throw err;
+//     }
+
+//     // Save to JSON file
+//     const filePath = path.join(dataDir, 'bluesky-posts.json');
+//     await fs.writeFile(
+//       filePath,
+//       JSON.stringify(data, null, 2)
+//     );
+//     console.log(`Saved results to ${filePath}`);
+//     return filePath;
+//   } catch (error) {
+//     console.error('Error saving to JSON file:', error);
+//     throw error;
+//   }
+// }
 
 export async function GET() {
   try {
