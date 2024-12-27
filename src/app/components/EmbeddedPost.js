@@ -258,7 +258,7 @@ export default function EmbeddedPost({ post }) {
           <div>
             <div className="flex flex-col">
               <a href={`/profile/${post.author.handle}`} className="font-bold text-black hover:underline">
-                {post.author.displayName}
+                {post.author.displayName || post.author.handle}
               </a>
               <span className="text-gray-600">
                 @{post.author.handle}
