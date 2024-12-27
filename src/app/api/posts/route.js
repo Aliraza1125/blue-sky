@@ -37,7 +37,7 @@ async function fetchBlueskyPosts(query, authToken) {
     const response = await axios.get('https://bsky.social/xrpc/app.bsky.feed.searchPosts', {
       params: {
         q: query,
-        limit: 15,
+        limit: 60,
         sort: 'latest' 
          },
       headers: {
