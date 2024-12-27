@@ -27,21 +27,92 @@ export function CustomPost({ post }) {
   const [isLiked, setIsLiked] = useState(false);
   const [localLikeCount, setLocalLikeCount] = useState(post.likeCount || 0);
 
-  // Enhanced text rendering with URL detection
+  // Function to handle YouTube URLs
+  const getYouTubeVideoId = (url) => {
+    const shortUrlPattern = /youtu\.be\/([a-zA-Z0-9_-]+)/;
+    const longUrlPattern = /youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/;
+    
+    const shortMatch = url.match(shortUrlPattern);
+    const longMatch = url.match(longUrlPattern);
+    
+    return shortMatch?.[1] || longMatch?.[1] || null;
+  };
+
+  // Function to convert any YouTube URL to standard format
+  const getStandardYouTubeUrl = (url) => {
+    const videoId = getYouTubeVideoId(url);
+    return videoId ? `https://www.youtube.com/watch?v=${videoId}` : url;
+  };
+
+  // Function to render YouTube preview
+  const renderYouTubePreview = (url, title = '') => {
+    const videoId = getYouTubeVideoId(url);
+    if (!videoId) return null;
+
+    const standardUrl = getStandardYouTubeUrl(url);
+
+    return (
+      <div className=" rounded-lg overflow-hidden">
+        <a 
+          href={standardUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block hover:opacity-95 transition-opacity"
+        >
+          <div className="relative">
+         
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-16 h-12 bg-red-600 rounded-lg flex items-center justify-center">
+                <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          {title && (
+            <div className="p-3 bg-white">
+              <h4 className="font-medium text-gray-900">{title}</h4>
+              <p className="text-sm text-gray-500 mt-1">YouTube video</p>
+            </div>
+          )}
+        </a>
+      </div>
+    );
+  };
+
+  // Enhanced text rendering with YouTube support
   const renderText = (text) => {
     if (!text) return '';
     
-    // URL regex pattern
+    // Patterns for different types of content
     const urlPattern = /https?:\/\/[^\s]+/g;
+    const youtubePattern = /(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)(\S*)/g;
     const hashtagPattern = /#[\w]+/g;
     const mentionPattern = /@[\w.]+/g;
     
-    // Split text into segments with URLs preserved
+    // Split text into segments
     const segments = text.split(/(\s+|(?=https?:\/\/)|(?<=\s)(?=[#@]))/);
     
     return segments.map((segment, index) => {
-      // Handle URLs
-      if (segment.match(urlPattern)) {
+      // Handle YouTube URLs
+      if (segment.match(youtubePattern)) {
+        const standardUrl = getStandardYouTubeUrl(segment);
+        return (
+          <React.Fragment key={index}>
+            <a 
+              href={standardUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline break-all"
+            >
+              {segment}
+            </a>
+            {renderYouTubePreview(segment)}
+          </React.Fragment>
+        );
+      }
+      // Handle regular URLs
+      else if (segment.match(urlPattern)) {
         return (
           <a 
             key={index}
@@ -173,7 +244,7 @@ export function CustomPost({ post }) {
           <div className="flex items-center space-x-2">
             <a href={`/profile/${post.author.handle}`} className="hover:underline">
               <span className="font-medium truncate">
-                {post.author.displayName}
+                {post.author.displayName || post.author.handle}
               </span>
             </a>
             <span className="text-gray-500 truncate">
