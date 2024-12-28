@@ -1,8 +1,10 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Share2, BookmarkPlus, Flag, MessageSquare, Eye } from 'lucide-react';
-// Simple Modal component
+import Hls from "hls.js";
+
+// Modal Component
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
   
@@ -27,6 +29,36 @@ export default function EmbeddedPost({ post }) {
   const [isLiked, setIsLiked] = useState(false);
   const [localLikeCount, setLocalLikeCount] = useState(post.likeCount || 0);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    let hls;
+
+    if (post.embed?.playlist && videoRef.current) {
+      const isHls = post.embed.playlist.endsWith('.m3u8');
+
+      if (isHls && Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(post.embed.playlist);
+        hls.attachMedia(videoRef.current);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setIsVideoLoaded(true);
+        });
+      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        videoRef.current.src = post.embed.playlist;
+        videoRef.current.addEventListener('loadeddata', () => {
+          setIsVideoLoaded(true);
+        });
+      }
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [post.embed?.playlist]);
 
   const formatDate = (dateString) => {
     try {
@@ -44,6 +76,7 @@ export default function EmbeddedPost({ post }) {
 
   // Function to handle YouTube URLs
   const getYouTubeVideoId = (url) => {
+    if (!url) return null;
     const shortUrlPattern = /youtu\.be\/([a-zA-Z0-9_-]+)/;
     const longUrlPattern = /youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/;
     
@@ -53,78 +86,39 @@ export default function EmbeddedPost({ post }) {
     return shortMatch?.[1] || longMatch?.[1] || null;
   };
 
-  // Function to convert any YouTube URL to standard format
-  const getStandardYouTubeUrl = (url) => {
-    const videoId = getYouTubeVideoId(url);
-    return videoId ? `https://www.youtube.com/watch?v=${videoId}` : url;
-  };
-
-  // Function to render YouTube preview
-  const renderYouTubePreview = (url, title = '') => {
-    const videoId = getYouTubeVideoId(url);
-    if (!videoId) return null;
-
-    return (
-      <div className="  rounded-lg overflow-hidden">
-        <a 
-          href={getStandardYouTubeUrl(url)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block hover:opacity-95 transition-opacity"
-        >
-          <div className="relative">
-          
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-16 h-12 bg-red-600 rounded-lg flex items-center justify-center">
-                <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-          {title && (
-            <div className="p-3 bg-white">
-              <h4 className="font-medium text-gray-900">{title}</h4>
-              <p className="text-sm text-gray-500 mt-1">YouTube video</p>
-            </div>
-          )}
-        </a>
-      </div>
-    );
-  };
-
-  // Enhanced text rendering with YouTube support
+  // Enhanced text rendering with link support
   const renderText = (text) => {
-    if (!text) return '';
+    if (!text) return null;
     
-    // Patterns for different types of content
-    const urlPattern = /https?:\/\/[^\s]+/g;
-    const youtubePattern = /(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)(\S*)/g;
-    const hashtagPattern = /#[\w]+/g;
-    const mentionPattern = /@[\w.]+/g;
+    const patterns = {
+      url: /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g,
+      youtube: /(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)(\S*)/g,
+      hashtag: /#[\w]+/g,
+      mention: /@[\w.]+/g,
+      email: /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi,
+    };
     
-    // Split text into segments
-    const segments = text.split(/(\s+|(?=https?:\/\/)|(?<=\s)(?=[#@]))/);
+    const segments = text.split(/(\s+|\n+|(?=https?:\/\/)|(?<=\s)(?=[#@]))/);
     
     return segments.map((segment, index) => {
-      // Handle YouTube URLs
-      if (segment.match(youtubePattern)) {
+      // Check for YouTube links
+      if (segment.match(patterns.youtube)) {
+        const videoId = getYouTubeVideoId(segment);
         return (
-          <React.Fragment key={index}>
-            <a 
-              href={segment.match(youtubePattern) ? getStandardYouTubeUrl(segment) : segment}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline break-all"
-            >
-              {segment}
-            </a>
-            {renderYouTubePreview(segment)}
-          </React.Fragment>
+          <a 
+            key={index}
+            href={`https://youtube.com/watch?v=${videoId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline break-all"
+          >
+            {segment}
+          </a>
         );
       }
-      // Handle regular URLs
-      else if (segment.match(urlPattern)) {
+      
+      // Check for general URLs
+      if (segment.match(patterns.url)) {
         return (
           <a 
             key={index}
@@ -137,32 +131,84 @@ export default function EmbeddedPost({ post }) {
           </a>
         );
       }
-      // Handle hashtags
-      else if (segment.match(hashtagPattern)) {
-        return (
-          <span key={index} className="text-blue-500 hover:underline cursor-pointer">
-            {segment}
-          </span>
-        );
-      }
-      // Handle mentions
-      else if (segment.match(mentionPattern)) {
+      
+      // Check for hashtags
+      if (segment.match(patterns.hashtag)) {
         return (
           <a 
             key={index}
-            href={`/profile/${segment.slice(1)}`}
+            href={`https://bsky.app/search?q=${encodeURIComponent(segment)}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-blue-500 hover:underline"
           >
             {segment}
           </a>
         );
       }
-      // Return regular text
+      
+      // Check for mentions
+      if (segment.match(patterns.mention)) {
+        const handle = segment.slice(1);
+        return (
+          <a 
+            key={index}
+            href={`https://bsky.app/profile/${handle}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            {segment}
+          </a>
+        );
+      }
+
+      // Handle newlines
+      if (segment === '\n') {
+        return <br key={index} />;
+      }
+      
       return segment;
     });
   };
 
-  // Enhanced image rendering with loading optimization
+  // Function to render videos
+  const renderVideo = () => {
+    if (post.embed?.$type === 'app.bsky.embed.video#view') {
+      return (
+        <div className="mt-3 relative">
+          {!isVideoLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          )}
+          <div className="aspect-[9/16] relative">
+            <video
+              ref={videoRef}
+              controls
+              playsInline
+              className="w-full h-full rounded-lg bg-black absolute inset-0"
+              poster={post.embed.thumbnail}
+              style={{
+                aspectRatio: `${post.embed.aspectRatio.width}/${post.embed.aspectRatio.height}`
+              }}
+            >
+              <source src={post.embed.playlist} type="application/x-mpegURL" />
+              {/* Fallback source */}
+              <source 
+                src={`https://video.bsky.app/watch/${encodeURIComponent(post.author.did)}/${post.embed.cid}/video.mp4`} 
+                type="video/mp4" 
+              />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Handle embedded images
   const renderImages = () => {
     if (post.embed?.$type === 'app.bsky.embed.images#view' && post.embed.images?.length > 0) {
       return (
@@ -180,35 +226,97 @@ export default function EmbeddedPost({ post }) {
         </div>
       );
     }
+    return null;
+  };
 
-    if (post.embed?.$type === 'app.bsky.embed.external#view') {
-      const { uri, title, description, thumb } = post.embed.external;
+  // Handle external embeds and YouTube
+// Update the renderExternalEmbed function
+const renderExternalEmbed = () => {
+  if (post.embed?.$type === 'app.bsky.embed.external#view') {
+    const { uri, title, description, thumb } = post.embed.external;
+
+    // Check if it's a YouTube link
+    const videoId = getYouTubeVideoId(uri);
+    if (videoId) {
       return (
-        <a
-          href={uri}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 block border rounded-lg overflow-hidden hover:bg-gray-50 transition-colors"
-        >
-          {thumb && (
-            <img
-              src={thumb}
-              alt={title || "External content"}
-              className="w-full h-48 object-cover"
-              loading="lazy"
-            />
-          )}
-          <div className="p-3">
-            <h4 className="font-medium text-gray-900">{title}</h4>
-            {description && (
-              <p className="text-gray-600 text-sm mt-1 line-clamp-2">{description}</p>
-            )}
-            <p className="text-gray-500 text-xs mt-2">{new URL(uri).hostname}</p>
+        <div className="mt-3">
+          <div className="rounded-lg overflow-hidden border border-gray-200">
+            <div className="relative aspect-w-16 aspect-h-32">
+              <iframe
+                src={`https://www.youtube.com/embed/${videoId}`}
+                title={title || "YouTube video"}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-[300px] rounded-lg"
+              ></iframe>
+            </div>
+            <div className="p-3 bg-white">
+              <h4 className="font-medium text-gray-900">{title}</h4>
+              {description && (
+                <p className="text-sm text-gray-600 mt-1">{description}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-2">youtube.com</p>
+            </div>
           </div>
-        </a>
+        </div>
       );
     }
 
+    // Regular external link preview
+    return (
+      <a
+        href={uri}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 block border rounded-lg overflow-hidden hover:bg-gray-50 transition-colors"
+      >
+        {thumb && (
+          <div className="aspect-video relative">
+            <img
+              src={thumb}
+              alt={title || "External content"}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        )}
+        <div className="p-3">
+          <h4 className="font-medium text-gray-900">{title}</h4>
+          {description && (
+            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{description}</p>
+          )}
+          <p className="text-xs text-gray-500 mt-2">
+            {new URL(uri).hostname.replace('www.', '')}
+          </p>
+        </div>
+      </a>
+    );
+  }
+  return null;
+};
+
+
+  // Handle quoted posts
+  const renderQuote = () => {
+    if (post.embed?.$type === 'app.bsky.embed.record#view') {
+      const quoted = post.embed.record;
+      return (
+        <div className="mt-3 border rounded p-3 bg-gray-50">
+          <div className="flex items-center space-x-2">
+            {quoted.author?.avatar && (
+              <img 
+                src={quoted.author.avatar} 
+                alt="" 
+                className="w-5 h-5 rounded-full"
+              />
+            )}
+            <span className="font-medium">{quoted.author?.displayName}</span>
+            <span className="text-gray-500">@{quoted.author?.handle}</span>
+          </div>
+          <div className="mt-2 text-gray-600">{quoted.value?.text}</div>
+        </div>
+      );
+    }
     return null;
   };
 
@@ -278,13 +386,16 @@ export default function EmbeddedPost({ post }) {
         </button>
       </div>
 
-      {/* Enhanced Post Content */}
+      {/* Post Content */}
       <div className="mt-3 text-[15px] whitespace-pre-wrap">
         {renderText(post.record.text)}
       </div>
 
-      {/* Enhanced Images/Embeds */}
+      {/* Media Content */}
+      {renderVideo()}
       {renderImages()}
+      {renderExternalEmbed()}
+      {renderQuote()}
 
       {/* Enhanced Timestamp and Visibility */}
       <div className="mt-3 flex items-center text-gray-600 text-sm">

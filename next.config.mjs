@@ -1,22 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    domains: ['cdn.bsky.app'],
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'cdn.bsky.app',
-        pathname: '/img/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'bsky.app',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'video.bsky.app',
-        pathname: '/watch/**',
-      },
       {
         protocol: 'https',
         hostname: '*.bsky.social',
@@ -24,22 +10,12 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'bravenewcoin.com',
+        hostname: 'cdn.bsky.app',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'cryptdd.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'www.borsahub.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'infoexist.com',
+        hostname: 'video.bsky.app',
         pathname: '/**',
       }
     ],
@@ -52,14 +28,13 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: [
-              "default-src 'self' https://bsky.app",
+              "default-src 'self'",
               "img-src 'self' https: data: blob:",
-              "media-src 'self' https://video.bsky.app",
-              "frame-src 'self' https://bsky.app https://*.bsky.app https://*.bsky.social",
-              "connect-src 'self' https://bsky.app https://bsky.social https://*.bsky.app https://*.bsky.social",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://bsky.app https://*.bsky.app",
-              "style-src 'self' 'unsafe-inline' https://bsky.app",
-              "font-src 'self' data: https://bsky.app",
+              "media-src 'self' https://video.bsky.app https://*.bsky.app https://cdn.bsky.app data: blob:",
+              "connect-src 'self' https://video.bsky.app https://*.bsky.app https://cdn.bsky.app",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              "frame-src 'self' https:",
             ].join('; '),
           },
         ],
