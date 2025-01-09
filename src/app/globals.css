@@ -2,18 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Add to your global styles */
-.embed-container {
-    width: 100%;
-    max-width: 100%;
-    margin: 0 auto;
-  }
-  
-  .bluesky-embed {
-    border: none;
-    max-width: 100%;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-  }
+:root {
+ --foreground-rgb: 0, 0, 0;
+ --background-rgb: 255, 255, 255;
+}
+
+.dark {
+ --foreground-rgb: 255, 255, 255;
+ --background-rgb: 17, 24, 39;
+}
+
+body {
+ color: rgb(var(--foreground-rgb));
+ background: rgb(var(--background-rgb));
+ transition: color 0.2s ease-in-out, background 0.2s ease-in-out;
+}
+
+@layer base {
+ body {
+   @apply min-h-screen;
+ }
+}
+
+.interaction-button {
+ @apply flex items-center space-x-1 transition-colors;
+}
+
+@media (max-width: 640px) {
+ .interaction-button {
+   @apply text-sm;
+ }
+}
