@@ -344,17 +344,32 @@ export default function EmbeddedPost({ post, isDark }) {
     return null;
   };
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLocalLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+  const handleLike = async () => {
+    try {
+      setIsLiked(!isLiked);
+      setLocalLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+      // Add any API call here to update like status
+    } catch (error) {
+      console.error('Error handling like:', error);
+    }
   };
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
+  const handleBookmark = async () => {
+    try {
+      setIsBookmarked(!isBookmarked);
+      // Add any API call here to update bookmark status
+    } catch (error) {
+      console.error('Error handling bookmark:', error);
+    }
   };
 
-  const handleFollow = () => {
-    setIsFollowing(!isFollowing);
+  const handleFollow = async () => {
+    try {
+      setIsFollowing(!isFollowing);
+      // Add any API call here to update follow status
+    } catch (error) {
+      console.error('Error handling follow:', error);
+    }
   };
 
   const handleShare = async () => {
@@ -366,7 +381,10 @@ export default function EmbeddedPost({ post, isDark }) {
           url: window.location.href,
         });
       } catch (err) {
-        console.error('Error sharing:', err);
+        if (err.name !== 'AbortError') {
+          console.error('Error sharing:', err);
+          setIsAlertOpen(true);
+        }
       }
     } else {
       setIsAlertOpen(true);
@@ -375,7 +393,7 @@ export default function EmbeddedPost({ post, isDark }) {
 
   return (
     <div className={`border ${isDark ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200'} rounded-lg p-4 hover:shadow-md transition-shadow`}>
-      <div className="flex flex-col sm:flex-row justify-between items-start mb-4">
+    <div className="flex flex-col sm:flex-row justify-between items-start mb-4">
         <div className="flex items-start space-x-3 mb-3 sm:mb-0">
           <a href={`/profile/${post.author.handle}`} className="flex-shrink-0">
             <img
@@ -385,25 +403,66 @@ export default function EmbeddedPost({ post, isDark }) {
             />
           </a>
 
-          <div className="flex flex-col min-w-0">
-            <a href={`/profile/${post.author.handle}`}
-               className={`font-bold ${isDark ? 'text-white' : 'text-black'} hover:underline truncate`}>
-              {post.author.displayName || post.author.handle}
-            </a>
-            <div className="flex items-center space-x-2 text-sm">
-              <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} truncate`}>
-                @{post.author.handle}
-              </span>
-              <span className={`${isDark ? 'text-gray-500' : 'text-gray-500'}`}>·</span>
-              <time className={`${isDark ? 'text-gray-400' : 'text-gray-500'} hover:underline whitespace-nowrap`}>
-                {formatDistanceToNow(new Date(post.record.createdAt))} ago
-              </time>
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex items-start justify-between w-full sm:w-auto">
+              <div className="flex flex-col min-w-0">
+                <a href={`/profile/${post.author.handle}`}
+                   className={`font-bold ${isDark ? 'text-white' : 'text-black'} hover:underline truncate`}>
+                  {post.author.displayName || post.author.handle}
+                </a>
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'} truncate`}>
+                    @{post.author.handle}
+                  </span>
+                  <span className="hidden sm:inline ${isDark ? 'text-gray-500' : 'text-gray-500'}">·</span>
+                  <time className="hidden sm:inline ${isDark ? 'text-gray-400' : 'text-gray-500'} hover:underline whitespace-nowrap">
+                    {formatDistanceToNow(new Date(post.record.createdAt))} ago
+                  </time>
+                </div>
+                <div className="block sm:hidden text-sm mt-1">
+                  <time className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {formatDistanceToNow(new Date(post.record.createdAt))} ago
+                  </time>
+                </div>
+              </div>
+              
+              {currencyInfo && (
+                <div className="sm:hidden flex flex-col items-end space-y-2  ml-4">
+                  <div className="flex items-center space-x-2">
+                    <div className={`flex items-center space-x-1 px-2 py-1 rounded-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                      <img
+                        src={currencyInfo.logo}
+                        alt={currencyInfo.name}
+                        className="w-4 h-4"
+                      />
+                      <span className={`text-xs font-medium ${isDark ? 'text-white' : 'text-black'}`}>
+                        {currencyInfo.name}
+                      </span>
+                    </div>
+                    <img
+                      src="https://upload.wikimedia.org/wikipedia/commons/7/7a/Bluesky_Logo.svg"
+                      alt="Bluesky"
+                      className="w-4 h-4"
+                    />
+                  </div>
+                  <button
+                    onClick={handleFollow}
+                    className={`text-xs font-bold px-3 py-1 rounded-full transition-colors ${
+                      isFollowing 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                        : 'bg-[#0085ff] hover:bg-blue-600 text-white'
+                    }`}
+                  >
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {currencyInfo && (
-          <div className="flex flex-col items-end space-y-2 ml-auto">
+          <div className="hidden sm:flex flex-col items-end space-y-2 ml-auto">
             <div className="flex items-center space-x-4">
               <div className={`flex items-center space-x-2 px-3 py-1 rounded-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
                 <img
@@ -422,7 +481,7 @@ export default function EmbeddedPost({ post, isDark }) {
               />
             </div>
             <button
-              onClick={() => setIsFollowing(!isFollowing)}
+              onClick={handleFollow}
               className={`text-sm font-bold px-4 py-1 rounded-full transition-colors ${
                 isFollowing 
                   ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
@@ -433,20 +492,19 @@ export default function EmbeddedPost({ post, isDark }) {
             </button>
           </div>
         )}
+        </div>
+
+      <div className={`mt-3 text-[15px] whitespace-pre-wrap ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+        {renderText(post.record.text)}
       </div>
 
-    
-      <div className={`mt-3 text-[15px] whitespace-pre-wrap ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-      {renderText(post.record.text)}
-    </div>
-
-    {/* Media content sections */}
-    <div className="mt-3">
-      {renderVideo()}
-      {renderImages()}
-      {renderExternalEmbed()}
-      {renderQuote()}
-    </div>
+      {/* Media content sections */}
+      <div className="mt-3">
+        {renderVideo()}
+        {renderImages()}
+        {renderExternalEmbed()}
+        {renderQuote()}
+      </div>
 
       <div className={`mt-3 flex items-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
         <time className="hover:underline" title={post.record.createdAt}>
@@ -466,7 +524,7 @@ export default function EmbeddedPost({ post, isDark }) {
         </button>
 
         <button 
-          onClick={() => setIsLiked(!isLiked)}
+          onClick={handleLike}
           className={`interaction-button group ${isLiked ? 'text-red-500' : 'hover:text-red-500'}`}
         >
           <svg className="w-5 h-5 group-hover:scale-110 transition-transform" 
@@ -476,16 +534,17 @@ export default function EmbeddedPost({ post, isDark }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
                   d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
+          <span>{localLikeCount}</span>
         </button>
 
         <button 
-          onClick={() => setIsBookmarked(!isBookmarked)}
+          onClick={handleBookmark}
           className={`interaction-button group ${isBookmarked ? 'text-yellow-500' : 'hover:text-yellow-500'}`}
         >
           <BookmarkPlus className="w-5 h-5 group-hover:scale-110 transition-transform" />
         </button>
 
-        <button onClick={() => setIsAlertOpen(true)} className="interaction-button group">
+        <button onClick={handleShare} className="interaction-button group">
           <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
         </button>
 
