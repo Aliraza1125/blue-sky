@@ -214,7 +214,9 @@ export default function EmbeddedPost({ post, isDark }) {
               className="w-full h-full rounded-lg bg-black absolute inset-0"
               poster={post.embed.thumbnail}
               style={{
-                aspectRatio: `${post.embed.aspectRatio.width}/${post.embed.aspectRatio.height}`
+                aspectRatio: post.embed?.aspectRatio 
+                  ? `${post.embed.aspectRatio.width}/${post.embed.aspectRatio.height}`
+                  : '16/9' // Default aspect ratio if not provided
               }}
             >
               <source src={post.embed.playlist} type="application/x-mpegURL" />
